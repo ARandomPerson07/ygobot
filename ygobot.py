@@ -22,7 +22,6 @@ def run_bot():
     # initialise vars and model for ygo search
     connection_string = os.environ['DB_CONNECT']
     model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-    db_endpoint = 'https://db.ygoprodeck.com/api/v7/cardinfo.php'
 
     # configure behaviour
 
