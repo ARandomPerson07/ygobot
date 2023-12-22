@@ -143,11 +143,11 @@ def run_bot():
 
           #add the ED Frame to the description string
           if len(card_types.intersection(ed_frames)) > 0:
-            desc_string += capitalize(card_types.intersection(ed_frames).pop()) + '/'
+            desc_string += card_types.intersection(ed_frames).pop().capitalize() + '/'
 
           #add the Ability
           if len(card_types.intersection(abilities)) > 0:
-            desc_string += capitalize(card_types.intersection(abilities).pop()) + '/'
+            desc_string += card_types.intersection(abilities).pop().capitalize() + '/'
 
           #we do not need to check for pendulums as they are handled in a separate branch
         
@@ -177,12 +177,12 @@ def run_bot():
         #spell case
         elif 'spell' in card_info['type'].lower():
           info_embed.description = f'{card_info["race"]} {card_info["type"]}'
-          info_embed.add_field(name = 'Desciption', value = card_info['desc'])
+          info_embed.add_field(name = 'Description', value = card_info['desc'])
 
         #trap case
         elif 'trap' in card_info['type'].lower():
           info_embed.description = f'{card_info["race"]} {card_info["type"]}'
-          info_embed.add_field(name = 'Desciption', value = card_info['desc'])
+          info_embed.add_field(name = 'Description', value = card_info['desc'])
 
         return info_embed
         
@@ -223,16 +223,18 @@ def run_bot():
 
           # Get further information based on the selected index
           selected_card_name = responses[selected_index][1]
-          ygoprodeck_response = requests.get(
-              f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={selected_card_name}"
-          )
-          card_info = ygoprodeck_response.json()
-          card_desc = card_info['data'][0]['desc']
+          # ygoprodeck_response = requests.get(
+          #     f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={selected_card_name}"
+          # )
+          # card_info = ygoprodeck_response.json()
+          # card_desc = card_info['data'][0]['desc']
 
-          further_info = f"**{selected_card_name}**\n\n"
-          further_info += card_desc
+          # further_info = f"**{selected_card_name}**\n\n"
+          # further_info += card_desc
+
+          further_info = get_card_info_embed(selected_card_name)
           # Send the further information to the user
-          await ctx.send(further_info)
+          await ctx.send(embed = further_info)
           break
 
       except TimeoutError:
