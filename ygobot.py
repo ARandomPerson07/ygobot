@@ -42,7 +42,8 @@ def run_bot():
   client = commands.Bot(command_prefix='_', intents=intents)
 
   # initialise vars and model for ygo search
-  connection_string = os.environ['DB_CONNECT']
+  #(old db hosted in SEA) connection_string = os.environ['DB_CONNECT']
+  connection_string = os.environ['DB_CONNECT_US']
   model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
   #initialise db connection
@@ -76,11 +77,16 @@ def run_bot():
   abilities = {'toon','spirit', 'union', 'gemini', 'flip'}
 
   #initialise the cid to gdrive link id dictionary
-  with open('card_to_img.json') as f:
+  # with open('card_to_img_fuzzy_id.json') as f:
+  #   card_to_img = json.load(f)
+  # above doesn't account for alt arts, which crashes searches due to keyerrors
+  with open('card_to_img_fuzzy_id.json') as f:
     card_to_img = json.load(f)
 
   print("Bot fully operational")
-  
+
+  #initialise the emotes for additional embedded "images"
+  utopray = client.get_emoji(1189966536966942790)
   # configure behaviour
 
   @client.event
@@ -89,7 +95,7 @@ def run_bot():
 
   @client.event
   async def on_ready():
-    print("Spedbot is running, version of Dec 23,2023.")
+    print("Spedbot is running, version of Dec 29,2023.")
     await client.change_presence(status=discord.Status.online,
                                  activity=discord.Game("Something, Maybe?"))
 
@@ -119,7 +125,7 @@ def run_bot():
   @client.command(name='ygo')
   async def ygosearch(ctx: commands.Context, *, card_query):
     '''Search for a Yu-Gi-Oh! card using L2 similarity search on the
-    card name's vectorized representation.'''
+    card name's vectorized representation. Takes a bit of time to vectorsearch all 12000+ cards'''
     await ctx.message.add_reaction("⌛")
     start = time.time()
     query_vec = model.encode(card_query)
@@ -156,7 +162,7 @@ def run_bot():
           color=discord.Color(0xb92aab),
           title="Yu-Gi-Oh! Card Search",
           description=
-          f'{ctx.author.display_name}, select the card you want to see details about using `1` to `5`, see the next/previous page of results using `n`/`p`, or cancel your query using `c`'
+          f'{ctx.author.display_name}, select the card you want to see details about using `1` to `5`, see the next/previous page of results using `n`/`p`, or cancel your query using `c` {utopray}'
       )
       for index, response in enumerate(responses[page * 5:page * 5 + 5]):
         lookup_strings.append((f"**[ {str(index + 1)} ]** - {response[1]}"))
