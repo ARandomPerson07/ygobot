@@ -1,7 +1,6 @@
 import discord
 import json
 from discord.ext import commands
-from discord import ActionRow, Button
 from dotenv import load_dotenv
 import os
 import random
@@ -11,26 +10,7 @@ from sentence_transformers import SentenceTransformer
 from asyncio import TimeoutError
 import time
 
-class ygoview(discord.ui.View):
-  def __init__(self):
-    super().__init__()
-    self.value = None
 
-  # When the confirm button is pressed, set the inner value to `True` and
-  # stop the View from listening to more input.
-  # We also send the user an ephemeral message that we're confirming their choice.
-  @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
-  async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-    await interaction.response.send_message('Confirming', ephemeral=True)
-    self.value = True
-    self.stop()
-
-  # This one is similar to the confirmation button except sets the inner value to `False`
-  @discord.ui.button(label='Cancel', style=discord.ButtonStyle.grey)
-  async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-    await interaction.response.send_message('Cancelling', ephemeral=True)
-    self.value = False
-    self.stop()
 
 def run_bot():
   # read environment variables from .env
@@ -45,36 +25,39 @@ def run_bot():
   #(old db hosted in SEA) connection_string = os.environ['DB_CONNECT']
   connection_string = os.environ['DB_CONNECT_US']
   model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-
+  print("Word Vectorizer Model Loaded")
   #initialise db connection
   conn = psycopg2.connect(connection_string)
   print("connection established to db")
-  
+
   #initialise dict for card frame colours
-  frame_to_colour = {'effect' : discord.Color(0xFF8B53),
-                     'normal' : discord.Color(0xFDE68A),
-                     'spell' : discord.Color(0x1D9E74),
-                     'trap' : discord.Color(0xBC5A84),
-                     'synchro' : discord.Color(0xCCCCCC),
-                     'xyz' : discord.Color(0x000000),
-                     'fusion' : discord.Color(0xA086B7),
-                     'link' : discord.Color(0x00008B),
-                     'ritual' : discord.Color(0x9DB5CC),
-                    }
+  frame_to_colour = {
+      'effect': discord.Color(0xFF8B53),
+      'normal': discord.Color(0xFDE68A),
+      'spell': discord.Color(0x1D9E74),
+      'trap': discord.Color(0xBC5A84),
+      'synchro': discord.Color(0xCCCCCC),
+      'xyz': discord.Color(0x000000),
+      'fusion': discord.Color(0xA086B7),
+      'link': discord.Color(0x00008B),
+      'ritual': discord.Color(0x9DB5CC),
+  }
   #initialise dict for specific cards with errors
-  error_cards = {'Prediction Princess Tarotreith' : "flip",
-                "Shinobaroness Peacock" : "spirit",
-                "Shinobaron Peacock" : "spirit",
-                "Shinobaron Shade Peacock" : "spirit",
-                "Shinobaroness Shade Peacock" : "spirit",
-                "Cyberse Sage" : "tuner",
-                "Magikey Mechmusket - Batosbuster" : "tuner"}
+  error_cards = {
+      'Prediction Princess Tarotreith': "flip",
+      "Shinobaroness Peacock": "spirit",
+      "Shinobaron Peacock": "spirit",
+      "Shinobaron Shade Peacock": "spirit",
+      "Shinobaroness Shade Peacock": "spirit",
+      "Cyberse Sage": "tuner",
+      "Magikey Mechmusket - Batosbuster": "tuner"
+  }
 
   #initialise set of ED frames
-  ed_frames = {'synchro','xyz','ritual','fusion','link'}
+  ed_frames = {'synchro', 'xyz', 'ritual', 'fusion', 'link'}
 
   #initialise set of abilities
-  abilities = {'toon','spirit', 'union', 'gemini', 'flip'}
+  abilities = {'toon', 'spirit', 'union', 'gemini', 'flip'}
 
   #initialise the cid to gdrive link id dictionary
   # with open('card_to_img_fuzzy_id.json') as f:
@@ -95,9 +78,9 @@ def run_bot():
 
   @client.event
   async def on_ready():
-    print("Spedbot is running, version of Dec 29,2023.")
+    print("Spedbot is running, version of Dec 31,2023.")
     await client.change_presence(status=discord.Status.online,
-                                 activity=discord.Game("Something, Maybe?"))
+                                 activity=discord.Game("it's 2024 btw"))
 
   @client.command(name='roll')
   async def roll(ctx, *dice):
@@ -138,14 +121,15 @@ def run_bot():
         cur.execute(search_query)
         responses = cur.fetchall()
     except:
-        # reestablish db connection before retrying
-        conn = psycopg2.connect(connection_string)
-        cur = conn.cursor()
-        cur.execute(search_query)
-        responses = cur.fetchall()
+      # reestablish db connection before retrying
+      conn = psycopg2.connect(connection_string)
+      cur = conn.cursor()
+      cur.execute(search_query)
+      responses = cur.fetchall()
     query_end = time.time()
     print(f"DB response received in {query_end - query_start}s")
     print(f"Full response generated in {query_end - start}s")
+
     # start of browsing loop
     # function to check for user response
     def check(message):
@@ -170,23 +154,78 @@ def run_bot():
       lookup_reply.add_field(name="Page", value=f'{page + 1}/5')
       return lookup_reply
 
-    def get_card_info_embed(card_name : str):
+    def get_card_info_embed(card_name: str):
       info_response = requests.get(
-        f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={card_name}"
-      )
+          f"https://db.ygoprodeck.com/api/v7/cardinfo.php?name={card_name}")
       card_info = info_response.json()['data'][0]
       cid = card_info['id']
-      gdrive_id = card_to_img[str(cid)]
-      thumb_link = f'https://drive.google.com/uc?id={gdrive_id}'
+      try:
+        gdrive_id = card_to_img[str(cid)]
+        thumb_link = f'https://drive.google.com/uc?id={gdrive_id}'
+      except :
+        thumb_link = None
       frame = card_info['frameType']
       if 'pendulum' in frame:
         #we have to handle pendulums differently due to double text boxes
-        frame_colour = frame_to_colour[frame.split('_')[0]]
+        frame = card_info['frameType'].split('_')[0]
+        card_types = card_info['type'].lower().split(" ")
+        frame_colour = frame_to_colour[frame]
+        info_embed = discord.Embed(color=frame_colour,
+                                   title=card_name,
+                                    url=card_info['ygoprodeck_url'])
+        if thumb_link:
+          info_embed.set_thumbnail(url=thumb_link)
+
+        #error cards type corrections
+        if card_name in error_cards.keys():
+          card_types.append(error_cards[card_name])
+
+        card_types = set(card_types)
+
+        #add the race to the description string
+        desc_string = card_info['race'] + '/'
+
+        #add the ED Frame to the description string
+        if len(card_types.intersection(ed_frames)) > 0:
+          desc_string += card_types.intersection(
+              ed_frames).pop().capitalize() + '/'
+
+        #add the Ability
+        if len(card_types.intersection(abilities)) > 0:
+          desc_string += card_types.intersection(
+              abilities).pop().capitalize() + '/'
+
+        desc_string += 'Pendulum/'
+
+        #check for Tuner
+        if 'tuner' in card_types:
+          desc_string += 'Tuner/'
+
+        #remove the last /
+        desc_string = desc_string[:-1]
+
+        #card description text
+        info_embed.description = desc_string
+
+        card_stats = ''
+        card_stats += f'**Attribute**: {card_info["attribute"]}\n'
+        card_stats += f'**Level/Rank**: {card_info["level"]}\n'
+        card_stats += f'{card_info["atk"]} ATK/{card_info["def"]} DEF\n'
+        card_stats += f'**Scale**: {card_info["scale"]}\n'
+        info_embed.add_field(name="Card Stats", value=card_stats)
+        info_embed.add_field(name='Monster Text',
+                             value=card_info['monster_desc'])
+        info_embed.add_field(name="Pendulum Text",
+                             value=card_info['pend_desc'])
+
+        return info_embed
       else:
         #frame colour matches the embed colour
         frame_colour = frame_to_colour[frame]
-        info_embed = discord.Embed(color = frame_colour, title = card_name, url = card_info['ygoprodeck_url'])
-        info_embed.set_thumbnail(url = thumb_link)
+        info_embed = discord.Embed(color=frame_colour,
+                                   title=card_name,
+                                   url=card_info['ygoprodeck_url'])
+        info_embed.set_thumbnail(url=thumb_link)
         #monster case
         if 'monster' in card_info['type'].lower():
           #order is Type/ED Frame/Ability/Pendulum/Tuner/Effect
@@ -195,20 +234,22 @@ def run_bot():
           #error cards types corrections
           if card_name in error_cards.keys():
             card_types.append(error_cards[card_name])
-          
+
           card_types = set(card_types)
-          
+
           #add the race to the description string
           desc_string = card_info['race'] + '/'
 
           #add the ED Frame to the description string
           if len(card_types.intersection(ed_frames)) > 0:
-            desc_string += card_types.intersection(ed_frames).pop().capitalize() + '/'
+            desc_string += card_types.intersection(
+                ed_frames).pop().capitalize() + '/'
 
           #add the Ability
           if len(card_types.intersection(abilities)) > 0:
-            desc_string += card_types.intersection(abilities).pop().capitalize() + '/'
-        
+            desc_string += card_types.intersection(
+                abilities).pop().capitalize() + '/'
+
           #check for Tuner
           if 'tuner' in card_types:
             desc_string += 'Tuner/'
@@ -228,32 +269,31 @@ def run_bot():
             card_stats += f'**Link Rating**: {card_info["linkval"]}\n'
             card_stats += f'**Link Arrows**: {" ".join(card_info["linkmarkers"])}\n'
             card_stats += f'{card_info["atk"]} ATK'
-          
-          info_embed.add_field(name = "Card Stats", value = card_stats)
-          info_embed.add_field(name = 'Description', value = card_info['desc'])
-        
+
+          info_embed.add_field(name="Card Stats", value=card_stats)
+          info_embed.add_field(name='Description', value=card_info['desc'])
+
         #spell case
         elif 'spell' in card_info['type'].lower():
           info_embed.description = f'{card_info["race"]} {card_info["type"]}'
-          info_embed.add_field(name = 'Description', value = card_info['desc'])
+          info_embed.add_field(name='Description', value=card_info['desc'])
 
         #trap case
         elif 'trap' in card_info['type'].lower():
           info_embed.description = f'{card_info["race"]} {card_info["type"]}'
-          info_embed.add_field(name = 'Description', value = card_info['desc'])
+          info_embed.add_field(name='Description', value=card_info['desc'])
 
         return info_embed
-        
-        
+
     browsing_loop = True
     #first 5
     page = 0
-    
+
     while browsing_loop:
 
       lookup_reply = get_embed_of_page_results(page)
       last_sent = await ctx.send(embed=lookup_reply)
-      
+
       try:
         # Wait for the user to input a number between 1 and 5
         reply_message = await client.wait_for('message',
@@ -272,9 +312,9 @@ def run_bot():
             await ctx.send("You are on the first page")
             continue
         elif reply_message.content == 'c':
-            await ctx.send("Request Cancelled.")
-            browsing_loop = False
-            break
+          await ctx.send("Request Cancelled.")
+          browsing_loop = False
+          break
         else:
           # Get the selected index (subtract 1 to get the correct index)
           selected_index = int(reply_message.content) - 1 + page * 5
@@ -292,7 +332,7 @@ def run_bot():
 
           further_info = get_card_info_embed(selected_card_name)
           # Send the further information to the user
-          await ctx.send(embed = further_info)
+          await ctx.send(embed=further_info)
           break
 
       except TimeoutError:
@@ -304,19 +344,20 @@ def run_bot():
         await ctx.send(
             "Invalid input. Please provide a number between 1 and 5.")
 
-  @client.command(name = 'ask')
+  @client.command(name='ask')
   async def ask(ctx: commands.Context):
-      """Asks the user a question to confirm something."""
-      # We create the view and assign it to a variable so we can wait for it later.
-      view = ygoview()
-      await ctx.send('Do you want to continue?', view=view)
-      # Wait for the View to stop listening for input...
-      await view.wait()
-      if view.value is None:
-          print('Timed out...')
-      elif view.value:
-          print('Confirmed...')
-      else:
-          print('Cancelled...')
+    """Asks the user a question to confirm something."""
+    # We create the view and assign it to a variable so we can wait for it later.
+    view = ygoview()
+    await ctx.send('Do you want to continue?', view=view)
+    # Wait for the View to stop listening for input...
+    await view.wait()
+    if view.value is None:
+      print('Timed out...')
+    elif view.value:
+      print('Confirmed...')
+    else:
+      print('Cancelled...')
+
   # run here
   client.run(os.environ['DISCORD_TOKEN'])
